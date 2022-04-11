@@ -295,6 +295,8 @@ fork(void)
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
+  np->mask = p->mask;
+
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
@@ -594,6 +596,13 @@ kill(int pid)
     release(&p->lock);
   }
   return -1;
+}
+
+void setmask(int mask){
+  struct proc *p = myproc();
+  acquire(&p->lock);
+  p->mask = mask;
+  release(&p->lock);
 }
 
 // Copy to either a user address, or kernel address,
