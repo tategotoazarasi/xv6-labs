@@ -105,6 +105,7 @@ extern uint64 sys_wait(void);
 extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
 extern uint64 sys_trace(void);
+extern uint64 sys_sysinfo(void);
 
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -129,6 +130,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 [SYS_trace]   sys_trace,
+[SYS_sysinfo] sys_sysinfo,
 };
 
 static char *syscall_names[] = {
@@ -154,6 +156,7 @@ static char *syscall_names[] = {
     [SYS_mkdir]   "mkdir",
     [SYS_close]   "close",
     [SYS_trace]   "trace",
+    [SYS_sysinfo]   "sysinfo",
 };
 
 void
@@ -166,7 +169,6 @@ syscall(void)
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     p->trapframe->a0 = syscalls[num]();
     if((1<<num) & (p->mask)){
-      //syscall_names[num] = "";
       //printf("num:\t%d\n1<<num:\t%d\nmask:\t%d\n(1<<num) & (p->mask):\t%d\n\n",num,1<<num,p->mask,(1<<num) & (p->mask));
       printf("%d: syscall %s -> %d\n",p->pid,syscall_names[num],p->trapframe->a0);
     }
