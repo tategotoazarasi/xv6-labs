@@ -41,6 +41,8 @@ ugetpid_test()
         exit(1);
       continue;
     }
+    //printf("getpid_test: pid=%d\n", getpid());//debug
+    //printf("ugetpid_test: pid=%d\n", ugetpid());//debug
     if (getpid() != ugetpid())
       err("missmatched PID");
     exit(0);
@@ -63,8 +65,11 @@ pgaccess_test()
   buf[PGSIZE * 30] += 1;
   if (pgaccess(buf, 32, &abits) < 0)
     err("pgaccess failed");
-  if (abits != ((1 << 1) | (1 << 2) | (1 << 30)))
+  if (abits != ((1 << 1) | (1 << 2) | (1 << 30))){
+    //printf("pgaccess_test: abits=%x\n", abits);//debug
+    //printf("correct abits=%x\n",((1 << 1) | (1 << 2) | (1 << 30)));//debug
     err("incorrect access bits set");
+  }
   free(buf);
   printf("pgaccess_test: OK\n");
 }
