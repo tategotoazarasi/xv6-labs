@@ -677,3 +677,24 @@ procdump(void)
     printf("\n");
   }
 }
+
+void procpgaccess(uint64 va,int nopages,uint64 ua){
+  uint64 out = 0;
+  struct proc *p = myproc();
+  //printf("va = %p\nnopages = %d\nua = %p\n",va,nopages,ua);//debug
+  pte_t* pte = walk(p->pagetable,va,0);
+  //printf("p = %p\n",pte);//debug
+  pagetable_t pagetable = (pagetable_t)(pte);
+  //vmprint(pagetable);//debug
+  for(int i = 0; i < (nopages>512?512:nopages); i++){
+    pte_t pte = pagetable[i];
+    if(pte & PTE_A){
+      //printf("%d %p\n",i,pte);//debug
+      out |= 1<<i;
+      pagetable[i] = ~pagetable[i];
+      pagetable[i] |= PTE_A;
+      pagetable[i] = ~pagetable[i];
+    }
+  }
+  copyout(p->pagetable,ua,(char*)&out,sizeof(out));
+}

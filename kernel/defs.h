@@ -104,6 +104,7 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+void            procpgaccess(uint64 va, int nopages, uint64 ua);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -172,6 +173,7 @@ int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 void            vmprint(pagetable_t pagetable);
 void            vmprint_indent(pagetable_t pagetable, int indent);
+pte_t*          walk(pagetable_t pagetable, uint64 va, int alloc);
 
 // plic.c
 void            plicinit(void);
