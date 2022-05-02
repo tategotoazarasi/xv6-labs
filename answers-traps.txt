@@ -1,0 +1,35 @@
+1. Which registers contain arguments to functions? For example, which register holds 13 in main's call to printf?
+
+The RISC-V calling convention passes arguments in registers when possible. Up to eight integer registers, a0–a7, and up to eight floating-point registers, fa0–fa7, are used for this purpose.
+a2 holds 13 in main's call to printf.
+
+
+2. Where is the call to function f in the assembly code for main? Where is the call to g? (Hint: the compiler may inline functions.)
+
+26 li a1,12. There is no call to f and g, the compiler calculated the result of f(8)+1 and passed it to the second parameter of the function printf.
+
+
+3. At what address is the function printf located?
+
+0x628
+
+
+4. What value is in the register ra just after the jalr to printf in main?
+
+38
+
+
+5.
+
+He110 World
+i = 0x726c6400
+4321
+
+
+6.
+
+the number stored in a2
+
+
+
+
