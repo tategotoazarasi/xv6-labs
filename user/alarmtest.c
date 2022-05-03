@@ -46,6 +46,7 @@ test0()
   printf("test0 start\n");
   count = 0;
   sigalarm(2, periodic);
+  //printf("periodic: %p\n", &periodic);
   for(i = 0; i < 1000*500000; i++){
     if((i % 1000000) == 0)
       write(2, ".", 1);

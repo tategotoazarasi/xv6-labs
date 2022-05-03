@@ -141,6 +141,10 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  p->alarm_interval = 0;
+  p->alarm_ticks = 0;
+  p->alarm_handler = 0;
+
   return p;
 }
 
@@ -313,6 +317,9 @@ fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  np->alarm_interval = p->alarm_interval;
+  np->alarm_ticks = 0;
+  np->alarm_handler = p->alarm_handler;
   release(&np->lock);
 
   return pid;
