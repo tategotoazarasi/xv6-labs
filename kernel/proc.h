@@ -103,6 +103,7 @@ struct proc {
   struct trapframe *trapframe; // data page for trampoline.S
   struct trapframe tf;
   int    sigreturn;            // non-zero if process has sigreturn
+  int    handler_running;      // non-zero if process has handler running
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory

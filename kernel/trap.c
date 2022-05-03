@@ -70,6 +70,7 @@ usertrap(void)
     if(p->sigreturn){
       p->sigreturn = 0;
       *(p->trapframe) = p->tf;
+      p->handler_running = 0;
     }
   } else if((which_dev = devintr()) != 0){
     // ok
@@ -85,9 +86,10 @@ usertrap(void)
   // If this is a timer interrupt.
   if(which_dev == 2){
     p->alarm_ticks++;
-    if(!(p->alarm_interval==0 && p->alarm_handler==0) && p->alarm_ticks==p->alarm_interval){
+    if(!(p->alarm_interval==0 && p->alarm_handler==0) && p->alarm_ticks>=p->alarm_interval && !p->handler_running){
       p->alarm_ticks = 0;
       p->tf = *(p->trapframe);
+      p->handler_running = 1;
       p->trapframe->epc = (uint64)(p->alarm_handler);
     }
     yield();

@@ -145,6 +145,7 @@ found:
   p->alarm_ticks = 0;
   p->alarm_handler = 0;
   p->sigreturn = 0;
+  p->handler_running = 0;
 
   return p;
 }
