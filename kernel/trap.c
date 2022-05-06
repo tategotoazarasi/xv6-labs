@@ -11,6 +11,8 @@ uint ticks;
 
 extern char trampoline[], uservec[], userret[];
 
+extern unsigned ref_count[];
+
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
 
@@ -27,6 +29,49 @@ void
 trapinithart(void)
 {
   w_stvec((uint64)kernelvec);
+}
+
+int handle_cow_fault(pagetable_t pagetable,uint64 va){
+  va = PGROUNDDOWN(va);
+  if(va>=MAXVA){
+    return -1;
+  }
+  pte_t *pte;
+  uint64 pa;
+  uint flags;
+  char *mem;
+  if((pte = walk(pagetable, va, 0)) == 0){
+    printf("handle_cow_fault: pte should exist\n");
+    return -1;
+  }
+  if((*pte & PTE_V) == 0 || (*pte & PTE_U) == 0) {
+    printf("handle_cow_fault: page not present\n");
+    return -1;
+  }
+  pa = PTE2PA(*pte);
+  if(!((*pte)&PTE_COW)){
+    printf("handle_cow_fault: COW flag not detected\n");
+    return -1;
+  }
+  /*if(get_ref(pa)==1){
+    (*pte) &= ~PTE_COW;
+    (*pte) |= PTE_W;
+    return 0;
+  }*/
+  flags = PTE_FLAGS(*pte);
+  if((mem = kalloc()) == 0){
+    return -1;
+  }
+  uvmunmap(pagetable, va, 1, 0);
+  memmove(mem, (void*)pa, PGSIZE);
+  flags |= PTE_W;
+  flags &= ~PTE_COW;
+  if(mappages(pagetable, va, PGSIZE, (uint64)mem, flags) != 0){
+    kfree(mem);
+    return -1;
+  }
+  kfree((void*)pa);
+  return 0;
 }
 
 //
@@ -67,6 +112,12 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if(r_scause() == 15){
+    if(handle_cow_fault(p->pagetable,r_stval())!=0){
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      p->killed = 1;
+    }
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
