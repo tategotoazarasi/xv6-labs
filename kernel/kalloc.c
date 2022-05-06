@@ -15,6 +15,7 @@ extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
 unsigned ref_count[PHYSTOP/PGSIZE];
+struct spinlock ref_lock;
 
 int kinit_done = 0;
 
@@ -28,15 +29,15 @@ struct {
 } kmem;
 
 void ref_add(uint64 pa,int amount){
-  acquire(&kmem.lock);
+  acquire(&ref_lock);
   ref_count[(uint64)pa / PGSIZE]+=amount;
-  release(&kmem.lock);
+  release(&ref_lock);
 }
 
 int get_ref(uint64 pa){
-  acquire(&kmem.lock);
+  acquire(&ref_lock);
   int ans = ref_count[(uint64)pa / PGSIZE];
-  release(&kmem.lock);
+  release(&ref_lock);
   return ans;
 }
 
@@ -44,6 +45,7 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  initlock(&ref_lock, "ref_lock");
   freerange(end, (void*)PHYSTOP);
   kinit_done = 1;
 }
@@ -72,7 +74,11 @@ kfree(void *pa)
   if(kinit_done){
     ref_add((uint64)pa,-1);
   }
-  if(!kinit_done || get_ref((uint64)pa) == 0){
+  int rc = get_ref((uint64)pa);
+  if(rc<0){
+    panic("kfree");
+  }
+  if(!kinit_done || rc <= 0){
     // Fill with junk to catch dangling refs.
     memset(pa, 1, PGSIZE);
 
@@ -95,14 +101,11 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r){
     kmem.freelist = r->next;
-  release(&kmem.lock);
-
-  if(r)
-    memset((char*)r, 5, PGSIZE); // fill with junk
-  acquire(&kmem.lock);
-  ref_count[(uint64)r / PGSIZE] = 1;
+    memset((char *)r, 5, PGSIZE); // fill with junk
+    ref_count[(uint64)r / PGSIZE] = 1;
+  }
   release(&kmem.lock);
   return (void*)r;
 }

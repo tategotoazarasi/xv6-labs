@@ -34,6 +34,7 @@ trapinithart(void)
 int handle_cow_fault(pagetable_t pagetable,uint64 va){
   va = PGROUNDDOWN(va);
   if(va>=MAXVA){
+    printf("handle_cow_fault: va=%p\n",va);
     return -1;
   }
   pte_t *pte;
@@ -53,13 +54,14 @@ int handle_cow_fault(pagetable_t pagetable,uint64 va){
     printf("handle_cow_fault: COW flag not detected\n");
     return -1;
   }
-  /*if(get_ref(pa)==1){
+  if(get_ref(pa)==1){
     (*pte) &= ~PTE_COW;
     (*pte) |= PTE_W;
     return 0;
-  }*/
+  }
   flags = PTE_FLAGS(*pte);
   if((mem = kalloc()) == 0){
+    printf("handle_cow_fault: kalloc failed\n");
     return -1;
   }
   uvmunmap(pagetable, va, 1, 0);
