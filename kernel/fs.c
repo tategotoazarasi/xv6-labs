@@ -377,6 +377,7 @@ iunlockput(struct inode *ip)
 static uint
 bmap(struct inode *ip, uint bn)
 {
+  //printf("bn = %d\n", bn);
   uint addr, *a;
   struct buf *bp;
 
@@ -397,6 +398,34 @@ bmap(struct inode *ip, uint bn)
       a[bn] = addr = balloc(ip->dev);
       log_write(bp);
     }
+    brelse(bp);
+    return addr;
+  } else {
+    //printf("doubly-indirect blocks\n");
+    bn -= NINDIRECT;
+    int idr_n = bn/NINDIRECT;
+    if(idr_n>=NINDIRECT) {
+      panic("bmap: out of range");
+    }
+    int idr_offset = bn%NINDIRECT;
+    //printf("idr_n = %d\nidr_offset = %d\n", idr_n, idr_offset);
+    if((addr = ip->addrs[NDIRECT+1]) == 0) {
+      ip->addrs[NDIRECT+1] = addr = balloc(ip->dev);
+    }
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    if((addr = a[idr_n]) == 0){
+      a[idr_n] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+    struct buf *bp2 = bread(ip->dev, addr);
+    uint *a2 = (uint*)bp2->data;
+    //printf("second layer\n");
+    if((addr = a2[idr_offset]) == 0){
+      a2[idr_offset] = addr = balloc(ip->dev);
+      log_write(bp2);
+    }
+    brelse(bp2);
     brelse(bp);
     return addr;
   }
@@ -430,6 +459,27 @@ itrunc(struct inode *ip)
     brelse(bp);
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
+  }
+
+  if(ip->addrs[NDIRECT+1]){
+    bp = bread(ip->dev, ip->addrs[NDIRECT+1]);
+    a = (uint*)bp->data;
+    for(j = 0; j < NINDIRECT; j++){
+      if(a[j]) {
+        struct buf *bp2 = bread(ip->dev, a[j]);
+        uint *a2 = (uint*)bp2->data;
+        for(int k=0;k<NINDIRECT; k++){
+          if(a2[k]) {
+            bfree(ip->dev, a2[k]);
+          }
+        }
+        brelse(bp2);
+        bfree(ip->dev, a[j]);
+      }
+    }
+    brelse(bp);
+    bfree(ip->dev, ip->addrs[NDIRECT+1]);
+    ip->addrs[NDIRECT+1] = 0;
   }
 
   ip->size = 0;
