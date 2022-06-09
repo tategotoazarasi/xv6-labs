@@ -16,6 +16,8 @@
 #include "file.h"
 #include "fcntl.h"
 
+int name_for_inode(char* buf, int n, struct inode *ip);
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -316,6 +318,32 @@ sys_open(void)
     }
   }
 
+  if(!(omode & O_NOFOLLOW) && ip->type==T_SYMLINK){
+    //printf("symlink opened\n");
+    char target[MAXPATH];
+    int threshold = 0;
+    while(ip !=0 && ip->type==T_SYMLINK){
+      readi(ip,0,(uint64)target,0,MAXPATH);
+      threshold++;
+      if(threshold>=10){
+        printf("loop overflow\n");
+        iunlockput(ip);
+        end_op();
+        return -1;
+      }
+      iunlockput(ip);
+      ip = namei(target);
+      if(ip) {
+        ilock(ip);
+      }
+    }
+    if(!ip){
+      printf("target not exists\n");
+      end_op();
+      return -1;
+    }
+  }
+
   if(ip->type == T_DEVICE && (ip->major < 0 || ip->major >= NDEV)){
     iunlockput(ip);
     end_op();
@@ -482,5 +510,46 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+uint64 sys_symlink(void){
+  //int symlink(char *target, char *path);
+  struct inode *ip;
+  char target[MAXPATH], path[MAXPATH];
+  if(argstr(0, target, MAXPATH) < 0) {
+    return -1;
+  }
+  if(argstr(1, path, MAXPATH) < 0) {
+    return -1;
+  }
+  begin_op();
+  /*struct inode *node;
+  int threshold = 0;
+  do{
+    //printf("HIT1");
+    node = namei(target);
+    //printf("HIT2");
+    if(node) {
+      printf("type: %d\n", node->type);
+    }
+    if(node!=0 && node->type == T_SYMLINK){
+      //ilock(node);
+      printf("threshold: %d\n",threshold);
+      readi(node,0,(uint64)target,0,MAXPATH);
+      //iunlock(node);
+      threshold++;
+    }
+    if(threshold>=10){
+      return -2;
+    }
+  }while(node !=0 && node->type==T_SYMLINK);*/
+  if((ip = create(path, T_SYMLINK, 0, 0)) == 0){
+    end_op();
+    return -1;
+  }
+  writei(ip, 0, (uint64)target, 0, strlen(target) + 1);
+  iunlockput(ip);
+  end_op();
   return 0;
 }
