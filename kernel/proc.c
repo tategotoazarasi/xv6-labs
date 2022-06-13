@@ -53,6 +53,9 @@ procinit(void)
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
       p->kstack = KSTACK((int) (p - proc));
+      for(int i=0;i<16;i++){
+        p->vmas[i].valid = 0;
+      }
   }
 }
 
@@ -289,6 +292,18 @@ fork(void)
   }
   np->sz = p->sz;
 
+  for(int i=0;i<16;i++){
+    np->vmas[i].valid = p->vmas[i].valid;
+    if(p->vmas[i].valid){
+      np->vmas[i] = p->vmas[i];
+      np->vmas[i].file = filedup(p->vmas[i].file);
+      if(mappages(np->pagetable, np->vmas[i].va, np->vmas[i].length, 0, PTE_U)<0){
+        printf("mappages failed\n");
+        return -1;
+      }
+    }
+  }
+
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
@@ -350,6 +365,13 @@ exit(int status)
       struct file *f = p->ofile[fd];
       fileclose(f);
       p->ofile[fd] = 0;
+    }
+  }
+
+  for(int i=0;i<16;i++){
+    if(p->vmas[i].valid){
+      uvmunmap(p->pagetable, p->vmas[i].va, PGROUNDUP(p->vmas[i].length) / PGSIZE, 0);
+      p->vmas[i].valid = 0;
     }
   }
 

@@ -59,6 +59,11 @@ OBJS += \
 	$K/pci.o
 endif
 
+ifeq ($(LAB),mmap)
+OBJS += \
+	$K/mmap.o
+endif
+
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -86,7 +91,7 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb
+CFLAGS = -Wall -O -fno-omit-frame-pointer -ggdb
 
 ifdef LAB
 LABUPPER = $(shell echo $(LAB) | tr a-z A-Z)
@@ -211,6 +216,12 @@ endif
 ifeq ($(LAB),cow)
 UPROGS += \
 	$U/_cowtest
+endif
+
+ifeq ($(LAB),mmap)
+UPROGS += \
+	$U/_mmaptest\
+	$U/_mytest
 endif
 
 ifeq ($(LAB),thread)

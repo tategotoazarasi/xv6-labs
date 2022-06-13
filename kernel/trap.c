@@ -5,6 +5,9 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -65,9 +68,46 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if(r_scause() == 0x0d || r_scause() == 0x0f) { // Load access fault
+    int bad = 1;
+    uint64 va = PGROUNDDOWN(r_stval());
+    if(va>=MAXVA){
+      printf("usertrap: va too large\n");
+      goto BAD;
+    }
+    //printf("mmap fault at %p\n",r_stval());
+    for(int i=0;i<16;i++){
+      struct vma *vma = &p->vmas[i];
+      if(vma->valid && va >= vma->va && va < vma->va + vma->length){
+        bad = 0;
+        if((!(vma->perm & PTE_R) && r_scause() == 0x0d) ||
+            (!(vma->perm & PTE_W) && r_scause() == 0x0f)){
+          printf("usertrap: access violation at %p\n",r_stval());
+          goto BAD;
+        }
+        uint64 pa = (uint64) kalloc();
+        memset((void*)pa, 0, PGSIZE);
+        if(pa==0){
+          panic("out of memory\n");
+        }
+        uvmunmap(p->pagetable, va, 1, 0);
+        if(mappages(p->pagetable, va, PGSIZE, pa, vma->perm)<0){
+          panic("mappages failed\n");
+        }
+        ilock(vma->file->ip);
+        readi(vma->file->ip, 1, va, va-vma->va, PGSIZE);
+        iunlock(vma->file->ip);
+        break;
+      }
+    }
+    if(bad){
+      printf("usertrap: no valid vma at %p\n",r_stval());
+      goto BAD;
+    }
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
+  BAD:
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
@@ -217,4 +257,3 @@ devintr()
     return 0;
   }
 }
-
